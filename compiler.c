@@ -164,29 +164,33 @@ int main(int argc,char **argv) {
         return 1;
     }
 
-    fgets(line,sizeof(line),file1);
-    char *ptr = line;
-
-    Variable var = parseTokens(&ptr);
-    fclose(file1);
-
+    
     FILE *file2 = fopen("out.c","w");
-    if(file2 == NULL) {
+    if(!file2) {
         printf("Error: Failed to open the file\n");
+        fclose(file1);
         return 1;
     }
 
     fprintf(file2,"#include <stdio.h>\n");
     fprintf(file2,"\nint main(void) {\n");
-    if(var.type == INTEGER_KEYWORD) {
-        fprintf(file2,"    int %s = %s;\n",var.name,var.value);
-    } else if(var.type == STRING_KEYWORD) {
-        fprintf(file2,"    char *%s = \"%s\";\n",var.name,var.value);
+
+    while(fgets(line,sizeof(line),file1)) {
+        char *ptr = line;
+        Variable var = parseTokens(&ptr);
+
+        if(var.type == INTEGER_KEYWORD) {
+            fprintf(file2,"    int %s = %s;\n",var.name,var.value);
+        } else if(var.type == STRING_KEYWORD) {
+            fprintf(file2,"    char *%s = \"%s\";\n",var.name,var.value);
+        }
     }
 
     fprintf(file2,"    return 0;\n");
     fprintf(file2,"}\n");
 
+    fclose(file1);
     fclose(file2);
+
     return 0;
 }
