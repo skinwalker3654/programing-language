@@ -111,12 +111,13 @@ Token getNextToken(char **input) {
 }
 
 typedef struct Variable {
-    TokenType type;
-    char var_name[100];
-    int int_value;
-    float float_value;
-    char stringValue[100];
-    char boolean[20];
+    TokenType type[100];
+    char var_name[100][40];
+    int int_value[100];
+    float float_value[100];
+    char stringValue[100][40];
+    char boolean[100][20];
+    int counter;
 } Variable;
 
 int parseTokens(Variable *var,char **input) {
@@ -132,7 +133,7 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
-    strcpy(var->var_name,token.name);
+    strcpy(var->var_name[var->counter],token.name);
 
     token = getNextToken(input);
     if(token.type != COLON_CHAR) {
@@ -149,7 +150,7 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
-    var->type = token.type;
+    var->type[var->counter] = token.type;
 
     token = getNextToken(input);
     if(token.type != EQUAL) {
@@ -163,7 +164,7 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
-    if(var->type == INTEGER) {
+    if(var->type[var->counter] == INTEGER) {
         if(token.type == STRINGVALUE) {
             printf("Error: Integers cannot be inside \"\"\n");
             return -1;
@@ -176,15 +177,15 @@ int parseTokens(Variable *var,char **input) {
             return -1;
         }
 
-        var->int_value = number;
-    } else if(var->type == TEXT) {
+        var->int_value[var->counter] = number;
+    } else if(var->type[var->counter] == TEXT) {
         if(token.type != STRINGVALUE) {
             printf("Error: Strings must be inside \"\"\n");
             return -1;
         }
 
-        strcpy(var->stringValue,token.name);
-    } else if(var->type == FLOAT) {
+        strcpy(var->stringValue[var->counter],token.name);
+    } else if(var->type[var->counter] == FLOAT) {
         if(token.type == STRINGVALUE) {
             printf("Error: Floats cannot have \"\"\n");
             return -1;
@@ -197,11 +198,11 @@ int parseTokens(Variable *var,char **input) {
             return -1;
         }
 
-        var->float_value = number;
+        var->float_value[var->counter] = number;
     } else if(token.type == FALSE_) {
-        strcpy(var->boolean,"false");
+        strcpy(var->boolean[var->counter],"false");
     } else if(token.type == TRUE_) {
-        strcpy(var->boolean,"true");
+        strcpy(var->boolean[var->counter],"true");
     } else {
         printf("Error: Booleans cannot be inside \"\"\n");
         return -1;
@@ -219,18 +220,21 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
+    var->counter++;
     return 0;
 }
 
 void codeGen(FILE *file,Variable *var) {
-    if(var->type == INTEGER) {
-        fprintf(file,"    int %s = %d;\n",var->var_name,var->int_value);
-    } else if(var->type == TEXT) {
-        fprintf(file,"    char *%s = \"%s\";\n",var->var_name,var->stringValue);
-    } else if(var->type == FLOAT) {
-        fprintf(file,"    float %s = %f;\n",var->var_name,var->float_value);
-    } else if(strcmp(var->boolean,"true")==0 || strcmp(var->boolean,"false")==0) {
-        fprintf(file,"    bool %s = %s;\n",var->var_name,var->boolean);
+    for(int i=0; i<var->counter; i++) {
+        if(var->type[i] == INTEGER) {
+            fprintf(file,"    int %s = %d;\n",var->var_name[i],var->int_value[i]);
+        } else if(var->type[i] == TEXT) {
+            fprintf(file,"    char *%s = \"%s\";\n",var->var_name[i],var->stringValue[i]);
+        } else if(var->type[i] == FLOAT) {
+            fprintf(file,"    float %s = %f;\n",var->var_name[i],var->float_value[i]);
+        } else if(strcmp(var->boolean[i],"true")==0 || strcmp(var->boolean[i],"false")==0) {
+            fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->boolean[i]);
+        }
     }
 }
 
@@ -241,7 +245,7 @@ int main(int argc,char *argv[]) {
         return 1;
     }
 
-    Variable var;
+    Variable var = {.counter=0};
     FILE *input = fopen(argv[1],"r");
     if(!input) {
         printf("Error: Failed to open the file\n");
@@ -256,8 +260,9 @@ int main(int argc,char *argv[]) {
         char *ptr = line;
         int check = parseTokens(&var,&ptr);
         if(check == -1) { remove("output.c"); return 1; }
-        codeGen(file,&var);
     }
+
+    codeGen(file,&var);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
