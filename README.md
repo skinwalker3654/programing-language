@@ -17,7 +17,15 @@ let <var_name>: <var_type> = <value>;
 
 ### example1 = let number: integer = 45;
 ### example2 = let name: string = "skinwalker";
+---
 
+## Type:
+```bash
+integer
+string
+float
+boolean
+```
 ---
 
 USE the compiler:
