@@ -19,7 +19,7 @@ let <var_name>: <var_type> = <value>;
 ### example2 = let name: string = "skinwalker";
 ---
 
-## Type:
+## Types:
 ```bash
 integer
 string
