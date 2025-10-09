@@ -42,6 +42,8 @@ gcc compiler.c -o main
 
 ## COMPILE THE PROGRAM
 ```bash
-make  # and a 'main' file will be create this is the compiler
+make  # This will be create an executable file with name 'main'
 ```
+
+---
 I will add more in the future.
