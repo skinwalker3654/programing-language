@@ -1,4 +1,4 @@
-I was starting to creating my own language
+I was starting to creating my own programing language
 and till now i made the compiler that tokenizes
 the file input and does syntax check.
 
