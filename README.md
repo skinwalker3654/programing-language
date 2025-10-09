@@ -1,6 +1,6 @@
 I was starting to creating my own programing language
 and till now i made the compiler that tokenizes
-the file input and does syntax check.
+the file input and does syntax check to genarate the C code on an **output.c** file.
 
 ---
 
