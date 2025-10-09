@@ -40,4 +40,8 @@ gcc compiler.c -o main
 
 ---
 
+## COMPILE THE PROGRAM
+```bash
+make  # and a 'main' file will be create this is the compiler
+```
 I will add more in the future.
