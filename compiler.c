@@ -121,19 +121,18 @@ Token getNextToken(char **input) {
 typedef struct Variable {
     TokenType type[100];
     char var_name[100][40];
-    int int_value[100];
-    float float_value[100];
-    char stringValue[100][40];
-    char boolean[100][20];
+    union {
+        int int_value[100];
+        float float_value[100];
+        char stringValue[100][40];
+        char boolean[100][20];
+    } Values;
+    char write_func_content[100][100];
     int counter;
 } Variable;
 
-typedef struct PRINTF {
-    char functionContent[100][60];
-    int funcCounter;
-} PRINTF;
-
-int parseFunction(PRINTF *ptr,char **input) {
+int parseFunction(Variable *ptr,char **input) {
+    ptr->type[ptr->counter] = WRITE;
     Token token = getNextToken(input);
     if(token.type != LPAREN) {
         printf("Error: Forgot parenthesis -> '('\n");
@@ -146,7 +145,8 @@ int parseFunction(PRINTF *ptr,char **input) {
         return -1;
     }
 
-    strcpy(ptr->functionContent[ptr->funcCounter++],token.name);
+    strcpy(ptr->write_func_content[ptr->counter],token.name);
+
     token = getNextToken(input);
     if(token.type != RPAREN) {
         printf("Error: Forgot to close the parenthesis -> ')'\n");
@@ -165,15 +165,16 @@ int parseFunction(PRINTF *ptr,char **input) {
         return -1;
     }
 
+    ptr->counter++;
     return 0;
 }
 
-int parseTokens(Variable *var,PRINTF *ptr,char **input) {
+int parseTokens(Variable *var,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
     if(token.type == WRITE) {
-        if(parseFunction(ptr,input)==-1) return -1;
+        if(parseFunction(var,input)==-1) return -1;
         return 0;
     }
 
@@ -232,14 +233,14 @@ int parseTokens(Variable *var,PRINTF *ptr,char **input) {
             return -1;
         }
 
-        var->int_value[var->counter] = number;
+        var->Values.int_value[var->counter] = number;
     } else if(var->type[var->counter] == TEXT) {
         if(token.type != STRINGVALUE) {
             printf("Error: Strings must be inside \"\"\n");
             return -1;
         }
 
-        strcpy(var->stringValue[var->counter],token.name);
+        strcpy(var->Values.stringValue[var->counter],token.name);
     } else if(var->type[var->counter] == FLOAT) {
         if(token.type == STRINGVALUE) {
             printf("Error: Floats cannot have \"\"\n");
@@ -253,14 +254,11 @@ int parseTokens(Variable *var,PRINTF *ptr,char **input) {
             return -1;
         }
 
-        var->float_value[var->counter] = number;
-    } else if(token.type == FALSE_) {
-        strcpy(var->boolean[var->counter],"false");
-    } else if(token.type == TRUE_) {
-        strcpy(var->boolean[var->counter],"true");
-    } else {
-        printf("Error: Booleans cannot be inside \"\"\n");
-        return -1;
+        var->Values.float_value[var->counter] = number;
+    } else if(var->type[var->counter] == BOOL) {
+        if(token.type == TRUE_) strcpy(var->Values.boolean[var->counter],"true");
+        else if(token.type == FALSE_) strcpy(var->Values.boolean[var->counter],"false");
+        else { printf("Error: Booleans cannot be inside of \"\"\n"); return -1; }
     }
 
     token = getNextToken(input);
@@ -279,21 +277,20 @@ int parseTokens(Variable *var,PRINTF *ptr,char **input) {
     return 0;
 }
 
-void codeGen(FILE *file,Variable *var,PRINTF *ptr) {
+void codeGen(FILE *file,Variable *var) {
     for(int i=0; i<var->counter; i++) {
         if(var->type[i] == INTEGER) {
-            fprintf(file,"    int %s = %d;\n",var->var_name[i],var->int_value[i]);
+            fprintf(file,"    int %s = %d;\n",var->var_name[i],var->Values.int_value[i]);
         } else if(var->type[i] == TEXT) {
-            fprintf(file,"    char *%s = \"%s\";\n",var->var_name[i],var->stringValue[i]);
+            fprintf(file,"    char *%s = \"%s\";\n",var->var_name[i],var->Values.stringValue[i]);
         } else if(var->type[i] == FLOAT) {
-            fprintf(file,"    float %s = %f;\n",var->var_name[i],var->float_value[i]);
-        } else if(strcmp(var->boolean[i],"true")==0 || strcmp(var->boolean[i],"false")==0) {
-            fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->boolean[i]);
+            fprintf(file,"    float %s = %f;\n",var->var_name[i],var->Values.float_value[i]);
+        } else if(strcmp(var->Values.boolean[i],"true")==0 || strcmp(var->Values.boolean[i],"false")==0) {
+            fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->Values.boolean[i]);
+        } else if(var->type[i] == WRITE) {
+            fprintf(file,"    printf(\"%s\");\n",var->write_func_content[i]);
         }
     }
-
-    for(int i=0; i<ptr->funcCounter; i++) 
-        fprintf(file,"    printf(\"%s\\n\");\n",ptr->functionContent[i]);
 }
 
 int main(int argc,char *argv[]) {
@@ -304,7 +301,6 @@ int main(int argc,char *argv[]) {
     }
 
     Variable var = {.counter=0};
-    PRINTF content = {.funcCounter=0};
     FILE *input = fopen(argv[1],"r");
     if(!input) {
         printf("Error: Failed to open the file\n");
@@ -317,11 +313,11 @@ int main(int argc,char *argv[]) {
     char line[100];
     while(fgets(line,sizeof(line),input)) {
         char *ptr = line;
-        int check = parseTokens(&var,&content,&ptr);
+        int check = parseTokens(&var,&ptr);
         if(check == -1) { remove("output.c"); return 1; }
     }
 
-    codeGen(file,&var,&content);
+    codeGen(file,&var);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
