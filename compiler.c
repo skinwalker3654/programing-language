@@ -17,6 +17,9 @@ typedef enum {
     TRUE_,
     FALSE_,
     SEMICOLON,
+    WRITE,
+    LPAREN,
+    RPAREN,
     EOF_T,
 } TokenType;
 
@@ -41,6 +44,9 @@ Token getNextToken(char **input) {
         token.name[counter] = '\0';
         if(strcmp(token.name,"let")==0) {
             token.type = LET_KEYWORD;
+            return token;
+        } else if(strcmp(token.name,"write")==0) {
+            token.type = WRITE;
             return token;
         } else if(strcmp(token.name,"integer")==0) {
             token.type = INTEGER;
@@ -105,6 +111,8 @@ Token getNextToken(char **input) {
         case ':': return (Token){COLON_CHAR,":"}; 
         case '=': return (Token){EQUAL,"="};
         case ';': return (Token){SEMICOLON,";"};
+        case '(': return (Token){LPAREN,"("};
+        case ')': return (Token){RPAREN,")"};
     }
 
     return (Token){EOF_T,""};
@@ -120,18 +128,63 @@ typedef struct Variable {
     int counter;
 } Variable;
 
-int parseTokens(Variable *var,char **input) {
+typedef struct PRINTF {
+    char functionContent[100][60];
+    int funcCounter;
+} PRINTF;
+
+int parseFunction(PRINTF *ptr,char **input) {
     Token token = getNextToken(input);
-    if(token.type != LET_KEYWORD) {
-        printf("Error: Forgot to assing the variable using 'let'\n");
+    if(token.type != LPAREN) {
+        printf("Error: Forgot parenthesis -> '('\n");
+        return -1;
+    } 
+    
+    token = getNextToken(input);
+    if(token.type != STRINGVALUE) {
+        printf("Error: The content must be inside of -> \"\"\n");
         return -1;
     }
+
+    strcpy(ptr->functionContent[ptr->funcCounter++],token.name);
+    token = getNextToken(input);
+    if(token.type != RPAREN) {
+        printf("Error: Forgot to close the parenthesis -> ')'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != SEMICOLON) {
+        printf("Error: Forgot the semicolon -> ';'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != EOF_T) {
+        printf("Error: Invalid arguments passed\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int parseTokens(Variable *var,PRINTF *ptr,char **input) {
+    Token token = getNextToken(input);
+    if(token.type == WRITE) {
+        if(parseFunction(ptr,input)==-1) return -1;
+        return 0;
+    }
+
+    if(token.type != LET_KEYWORD && token.type != WRITE) {
+        printf("Error: Forgot to assing the variable using 'let'\n");
+        return -1;
+    } 
 
     token = getNextToken(input);
     if(token.type != VAR_NAME) {
         printf("Error: Invalid variable name '%s'\n",token.name);
         return -1;
-    }
+    } 
 
     strcpy(var->var_name[var->counter],token.name);
 
@@ -224,7 +277,7 @@ int parseTokens(Variable *var,char **input) {
     return 0;
 }
 
-void codeGen(FILE *file,Variable *var) {
+void codeGen(FILE *file,Variable *var,PRINTF *ptr) {
     for(int i=0; i<var->counter; i++) {
         if(var->type[i] == INTEGER) {
             fprintf(file,"    int %s = %d;\n",var->var_name[i],var->int_value[i]);
@@ -236,6 +289,9 @@ void codeGen(FILE *file,Variable *var) {
             fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->boolean[i]);
         }
     }
+
+    for(int i=0; i<ptr->funcCounter; i++) 
+        fprintf(file,"    printf(\"%s\\n\");\n",ptr->functionContent[i]);
 }
 
 int main(int argc,char *argv[]) {
@@ -246,6 +302,7 @@ int main(int argc,char *argv[]) {
     }
 
     Variable var = {.counter=0};
+    PRINTF content = {.funcCounter=0};
     FILE *input = fopen(argv[1],"r");
     if(!input) {
         printf("Error: Failed to open the file\n");
@@ -258,11 +315,11 @@ int main(int argc,char *argv[]) {
     char line[100];
     while(fgets(line,sizeof(line),input)) {
         char *ptr = line;
-        int check = parseTokens(&var,&ptr);
+        int check = parseTokens(&var,&content,&ptr);
         if(check == -1) { remove("output.c"); return 1; }
     }
 
-    codeGen(file,&var);
+    codeGen(file,&var,&content);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
