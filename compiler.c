@@ -18,6 +18,7 @@ typedef enum {
     FALSE_,
     SEMICOLON,
     WRITE,
+    GETINPUT,
     LPAREN,
     RPAREN,
     EOF_T,
@@ -47,6 +48,9 @@ Token getNextToken(char **input) {
             return token;
         } else if(strcmp(token.name,"write")==0) {
             token.type = WRITE;
+            return token;
+        } else if(strcmp(token.name,"getInput")==0) {
+            token.type = GETINPUT;
             return token;
         } else if(strcmp(token.name,"integer")==0) {
             token.type = INTEGER;
@@ -128,6 +132,11 @@ typedef struct Variable {
         char boolean[100][20];
     } Values;
     char write_func_content[100][100];
+    union {
+        char content[100][100];
+        char var_name_to_get_input[100][40];
+        TokenType variableType;
+    } GetInput;
     int counter;
 } Variable;
 
@@ -172,6 +181,75 @@ int parseFunction(Variable *ptr,char **input) {
 int parseTokens(Variable *var,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
+
+    int indexIdx = -1;
+    if(token.type == VAR_NAME) {
+        int foundIdx = 0;
+        for(int i=0; i<var->counter; i++) {
+            if(strcmp(token.name,var->var_name[i])==0) {
+                foundIdx = 1;
+                indexIdx = i;
+                break;
+            }
+        }
+
+        if(foundIdx == 0) {
+            printf("Error: Variable '%s' not found\n",token.name);
+            return -1;
+        }
+        
+        var->GetInput.variableType = var->type[indexIdx];
+        strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
+
+        token = getNextToken(input);
+        if(token.type != EQUAL) {
+            printf("Error: Forgot to assing the value -> '='\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != GETINPUT) {
+            printf("Error: Invalid variable\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != LPAREN) {
+            printf("Error: Forgot to assing the -> '('\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != STRINGVALUE) {
+            printf("Error: Text must be inside of \"\"\n");
+            return -1;
+        }
+
+        strcpy(var->GetInput.content[var->counter],token.name);
+
+        token = getNextToken(input);
+        if(token.type != RPAREN) {
+            printf("Error: Forgot to assign the -> ')'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != SEMICOLON) {
+            printf("Error: Forgot a semicolon -> ';'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != EOF_T) {
+            printf("Error: Invalid arguments passed\n");
+            return -1;
+        }
+
+        var->type[var->counter] = GETINPUT;
+        var->counter++;
+
+        return 0;
+    }
 
     if(token.type == WRITE) {
         if(parseFunction(var,input)==-1) return -1;
@@ -289,6 +367,15 @@ void codeGen(FILE *file,Variable *var) {
             fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->Values.boolean[i]);
         } else if(var->type[i] == WRITE) {
             fprintf(file,"    printf(\"%s\");\n",var->write_func_content[i]);
+        } else if(var->type[i] == GETINPUT) {
+            fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
+            if(var->GetInput.variableType == INTEGER) {
+                fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+            } else if(var->GetInput.variableType == STRINGVALUE) {
+                fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
+            } else if(var->GetInput.variableType == FLOAT) {
+                fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+            }  
         }
     }
 }

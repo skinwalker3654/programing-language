@@ -8,6 +8,7 @@ the file input and does syntax check to generate the C code on an **output.c** f
 it can compile variable creation
 in a new language with diffrent syntax
 end has a build in printf function called **write()**.
+end one called **getInput()** which is for basic I/O.
 
 ### syntax:
 ```text
