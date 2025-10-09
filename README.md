@@ -7,7 +7,7 @@ the file input and does syntax check to generate the C code on an **output.c** f
 ## Features
 it can compile variable creation
 in a new language with diffrent syntax
-end has a build in printf command called **write()**.
+end has a build in printf function called **write()**.
 
 ### syntax:
 ```text
