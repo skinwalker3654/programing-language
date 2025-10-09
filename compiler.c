@@ -170,6 +170,8 @@ int parseFunction(PRINTF *ptr,char **input) {
 
 int parseTokens(Variable *var,PRINTF *ptr,char **input) {
     Token token = getNextToken(input);
+    if(token.type == EOF_T) return 0;
+
     if(token.type == WRITE) {
         if(parseFunction(ptr,input)==-1) return -1;
         return 0;
