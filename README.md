@@ -24,6 +24,9 @@ let isGood: boolean = true;
 
 write("Hello!!");
 write("How are you!");
+
+number = getInput("Enter a number: ");
+name = getInput("Enter your name: ");
 ...
 ```
 ---
