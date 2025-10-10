@@ -22,8 +22,8 @@ let number: integer = 45;
 let name: string = "michael";
 let isGood: boolean = true;
 
-write("Hello!!");
-write("How are you!");
+write("Hello!!\n");
+write("How are you!\n");
 
 number = getInput("Enter a number: ");
 name = getInput("Enter your name: ");
