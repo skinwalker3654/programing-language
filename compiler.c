@@ -31,6 +31,7 @@ typedef struct Token {
 
 Token getNextToken(char **input) {
     while(isspace(**input)) (*input)++;
+    if(**input == '\0') return (Token){EOF_T,""};
 
     if(isalpha(**input)) {
         Token token;
@@ -131,11 +132,16 @@ typedef struct Variable {
         char stringValue[100][40];
         char boolean[100][20];
     } Values;
-    char write_func_content[100][100];
-    union {
+    struct {
+        int TextOrVar[100]; //0 = CONTENT | 1 = VARIABLE
+        char write_func_content[100][100];
+        char var_name[100][40];
+        TokenType type[100];
+    } Write;
+    struct {
         char content[100][100];
         char var_name_to_get_input[100][40];
-        TokenType variableType;
+        TokenType variableType[100];
     } GetInput;
     int counter;
 } Variable;
@@ -149,12 +155,55 @@ int parseFunction(Variable *ptr,char **input) {
     } 
     
     token = getNextToken(input);
-    if(token.type != STRINGVALUE) {
-        printf("Error: The content must be inside of -> \"\"\n");
+    if(token.type != STRINGVALUE && token.type != VAR_NAME) {
+        printf("Error: Invalid content: %s\n",token.name);
         return -1;
     }
 
-    strcpy(ptr->write_func_content[ptr->counter],token.name);
+    if(token.type == VAR_NAME) {
+        int foundIdx = -1;
+        int index = -1;
+        for(int i=0; i<ptr->counter; i++) {
+            if(strcmp(ptr->var_name[i],token.name)==0) {
+                foundIdx = 1;
+                index = i;
+                break;
+            }
+        }
+
+        if(foundIdx != -1) {
+            ptr->Write.type[ptr->counter] = ptr->type[index];
+            strcpy(ptr->Write.var_name[ptr->counter],token.name);
+            ptr->Write.TextOrVar[ptr->counter] = 1;
+
+            token = getNextToken(input);
+            if(token.type != RPAREN) {
+                printf("Error: Forgot to close the parenthesis -> ')'\n");
+                return -1;
+            }
+
+            token = getNextToken(input);
+            if(token.type != SEMICOLON) {
+                printf("Error: Forgot the semicolon -> ';'\n");
+                return -1;
+            }
+
+            token = getNextToken(input);
+            if(token.type != EOF_T) {
+                printf("Error: Invalid arguments passed\n");
+                return -1;
+            }
+
+            ptr->counter++;
+            return 0;
+        } else {
+            printf("Error: Variable -> '%s' not found\n",token.name);
+            return -1;
+        }
+    }
+
+    ptr->Write.TextOrVar[ptr->counter] = 0;
+    strcpy(ptr->Write.write_func_content[ptr->counter],token.name);
 
     token = getNextToken(input);
     if(token.type != RPAREN) {
@@ -182,8 +231,8 @@ int parseTokens(Variable *var,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
-    int indexIdx = -1;
     if(token.type == VAR_NAME) {
+        int indexIdx = -1;
         int foundIdx = 0;
         for(int i=0; i<var->counter; i++) {
             if(strcmp(token.name,var->var_name[i])==0) {
@@ -193,12 +242,12 @@ int parseTokens(Variable *var,char **input) {
             }
         }
 
-        if(foundIdx == 0) {
+        if(!foundIdx) {
             printf("Error: Variable '%s' not found\n",token.name);
             return -1;
         }
         
-        var->GetInput.variableType = var->type[indexIdx];
+        var->GetInput.variableType[var->counter] = var->type[indexIdx];
         strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
 
         token = getNextToken(input);
@@ -360,20 +409,32 @@ void codeGen(FILE *file,Variable *var) {
         if(var->type[i] == INTEGER) {
             fprintf(file,"    int %s = %d;\n",var->var_name[i],var->Values.int_value[i]);
         } else if(var->type[i] == TEXT) {
-            fprintf(file,"    char *%s = \"%s\";\n",var->var_name[i],var->Values.stringValue[i]);
+            fprintf(file,"    char %s[256] = \"%s\";\n",var->var_name[i],var->Values.stringValue[i]);
         } else if(var->type[i] == FLOAT) {
             fprintf(file,"    float %s = %f;\n",var->var_name[i],var->Values.float_value[i]);
-        } else if(strcmp(var->Values.boolean[i],"true")==0 || strcmp(var->Values.boolean[i],"false")==0) {
+        } else if(var->type[i] == BOOL) {
             fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->Values.boolean[i]);
         } else if(var->type[i] == WRITE) {
-            fprintf(file,"    printf(\"%s\");\n",var->write_func_content[i]);
+            if(var->Write.TextOrVar[i] == 0) {
+                fprintf(file,"    printf(\"%s\");\n",var->Write.write_func_content[i]);
+            } else {
+                if(var->Write.type[i] == INTEGER) {
+                    fprintf(file,"    printf(\"%%d\\n\",%s);\n",var->Write.var_name[i]);
+                } else if(var->Write.type[i] == FLOAT) {
+                    fprintf(file,"    printf(\"%%f\\n\",%s);\n",var->Write.var_name[i]);
+                } else if(var->Write.type[i] == TEXT) {
+                    fprintf(file,"    printf(\"%%s\\n\",%s);\n",var->Write.var_name[i]);
+                } else if(var->Write.type[i] == BOOL) {
+                    fprintf(file,"    printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n", var->Write.var_name[i]);
+                }
+            }
         } else if(var->type[i] == GETINPUT) {
             fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-            if(var->GetInput.variableType == INTEGER) {
+            if(var->GetInput.variableType[i] == INTEGER) {
                 fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
-            } else if(var->GetInput.variableType == STRINGVALUE) {
+            } else if(var->GetInput.variableType[i] == TEXT) {
                 fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
-            } else if(var->GetInput.variableType == FLOAT) {
+            } else if(var->GetInput.variableType[i] == FLOAT) {
                 fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
             }  
         }
@@ -397,17 +458,22 @@ int main(int argc,char *argv[]) {
     FILE *file = fopen("output.c","w");
     fprintf(file,"#include <stdio.h>\n#include <stdbool.h>\nint main(void) {\n");
 
-    char line[100];
+    char line[256];
     while(fgets(line,sizeof(line),input)) {
-        char *ptr = line;
-        int check = parseTokens(&var,&ptr);
-        if(check == -1) { remove("output.c"); return 1; }
+        char *ptr = line; 
+        while(*ptr != '\0') {
+            int check = parseTokens(&var,&ptr);
+            if(check == -1) { remove("output.c"); return 1; }
+        }
     }
 
     codeGen(file,&var);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
+
+    system("gcc output.c -o main");
+    remove("output.c");
 
     return 0;
 }

@@ -23,6 +23,7 @@ let name: string = "michael";
 let isGood: boolean = true;
 
 write("Hello!!\n");
+wiret(number);
 write("How are you!\n");
 
 number = getInput("Enter a number: ");
