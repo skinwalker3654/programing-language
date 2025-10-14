@@ -23,7 +23,7 @@ let name: string = "michael";
 let isGood: boolean = true;
 
 write("Hello!!\n");
-wiret(number);
+write(number);
 write("How are you!\n");
 
 number = getInput("Enter a number: ");
@@ -44,19 +44,11 @@ boolean
 USE the compiler:
 1. compile the compiler:
 ```bash
-gcc compiler.c -o main
+make
 ```
 2. use the compiler:
 ```bash
-./main filename
+./compile filename
 ```
-
----
-
-## COMPILE THE PROGRAM
-```bash
-make  # This will be create an executable file with name -> 'main'
-```
-
 ---
 I will add more in the future.
