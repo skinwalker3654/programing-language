@@ -107,7 +107,8 @@ Token getNextToken(char **input) {
         }
 
         token.name[counter] = '\0';
-        (*input)++; 
+        if(**input == '"') (*input)++; 
+
         return token;
     }
 
@@ -118,30 +119,30 @@ Token getNextToken(char **input) {
         case ';': return (Token){SEMICOLON,";"};
         case '(': return (Token){LPAREN,"("};
         case ')': return (Token){RPAREN,")"};
+        default: return (Token){EOF_T,""};
     }
-
-    return (Token){EOF_T,""};
 }
 
 typedef struct Variable {
-    TokenType type[100];
-    char var_name[100][40];
-    union {
-        int int_value[100];
-        float float_value[100];
-        char stringValue[100][40];
-        char boolean[100][20];
+    TokenType type[200];
+    char var_name[200][40];
+    struct {
+        int int_value[200];
+        float float_value[200];
+        char stringValue[200][40];
+        char boolean[200][20];
     } Values;
     struct {
-        int TextOrVar[100]; //0 = CONTENT | 1 = VARIABLE
-        char write_func_content[100][100];
-        char var_name[100][40];
-        TokenType type[100];
+        int TextOrVar[200]; //0 = CONTENT | 1 = VARIABLE
+        char write_func_content[200][100];
+        char var_name[200][40];
+        TokenType type[200];
     } Write;
     struct {
-        char content[100][100];
-        char var_name_to_get_input[100][40];
-        TokenType variableType[100];
+        int AssignOrNot[200]; //0 = ASSIGN | 1 = NOT ASSIGN
+        char content[200][100];
+        char var_name_to_get_input[200][40];
+        TokenType variableType[200];
     } GetInput;
     int counter;
 } Variable;
@@ -172,7 +173,12 @@ int parseFunction(Variable *ptr,char **input) {
         }
 
         if(foundIdx != -1) {
-            ptr->Write.type[ptr->counter] = ptr->type[index];
+            if(ptr->GetInput.AssignOrNot[index] == 0)
+                ptr->Write.type[ptr->counter] = ptr->type[index];
+            else if(ptr->GetInput.AssignOrNot[index] == 1)
+                ptr->Write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
+            else 
+                ptr->Write.type[ptr->counter] = ptr->type[index];
             strcpy(ptr->Write.var_name[ptr->counter],token.name);
             ptr->Write.TextOrVar[ptr->counter] = 1;
 
@@ -247,6 +253,11 @@ int parseTokens(Variable *var,char **input) {
             return -1;
         }
         
+        if(var->type[indexIdx] == BOOL) {
+            printf("Error: Cannot take input on booleans\n");
+            return -1;
+        }
+
         var->GetInput.variableType[var->counter] = var->type[indexIdx];
         strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
 
@@ -316,6 +327,8 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     } 
 
+    char tempVarName[40];
+    strcpy(tempVarName,token.name);
     strcpy(var->var_name[var->counter],token.name);
 
     token = getNextToken(input);
@@ -333,6 +346,7 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
+    int tempType = token.type;
     var->type[var->counter] = token.type;
 
     token = getNextToken(input);
@@ -342,6 +356,65 @@ int parseTokens(Variable *var,char **input) {
     }
 
     token = getNextToken(input);
+    if(token.type == GETINPUT) {
+        int foundIdx = -1;
+        for(int i=0; i<var->counter; i++) {
+            if(strcmp(var->var_name[i],tempVarName)==0) {
+                foundIdx = 1;
+                break;
+            }
+        }
+        
+        if(foundIdx == 1) {
+            printf("Error: Cannot create this variable bc variable name already exists\n");
+            return -1;
+        }
+
+        var->GetInput.AssignOrNot[var->counter] = 1;
+        strcpy(var->GetInput.var_name_to_get_input[var->counter],tempVarName);
+        if(tempType == BOOL) {
+            printf("Error: Cannot take input on booleans\n");
+            return -1;
+        }
+
+        var->GetInput.variableType[var->counter] = tempType;
+        token = getNextToken(input);
+        if(token.type != LPAREN) {
+            printf("Error: Forgot to assign the parenthesis -> '('\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != STRINGVALUE) {
+            printf("Error: Prompt must be inside of -> \"\"\n");
+            return -1;
+        }
+        
+        strcpy(var->GetInput.content[var->counter],token.name);
+        token = getNextToken(input);
+        if(token.type != RPAREN) {
+            printf("Error: Forgot to close the parenthesis -> ')'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != SEMICOLON) {
+            printf("Error: Forgot to put a semicolon at the end -> ';'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != EOF_T) {
+            printf("Error: Invalid arguments passed\n");
+            return -1;
+        }
+
+        var->type[var->counter] = GETINPUT;
+        var->counter++;
+
+        return 0;
+    }
+
     if(token.type != VALUE && token.type != STRINGVALUE && token.type != FALSE_ && token.type != TRUE_) {
         printf("Error: Invalid value '%s'\n",token.name);
         return -1;
@@ -400,7 +473,9 @@ int parseTokens(Variable *var,char **input) {
         return -1;
     }
 
+    var->GetInput.AssignOrNot[var->counter] = 0;
     var->counter++;
+
     return 0;
 }
 
@@ -417,7 +492,7 @@ void codeGen(FILE *file,Variable *var) {
         } else if(var->type[i] == WRITE) {
             if(var->Write.TextOrVar[i] == 0) {
                 fprintf(file,"    printf(\"%s\");\n",var->Write.write_func_content[i]);
-            } else {
+            } else if(var->Write.TextOrVar[i] == 1){
                 if(var->Write.type[i] == INTEGER) {
                     fprintf(file,"    printf(\"%%d\\n\",%s);\n",var->Write.var_name[i]);
                 } else if(var->Write.type[i] == FLOAT) {
@@ -429,15 +504,31 @@ void codeGen(FILE *file,Variable *var) {
                 }
             }
         } else if(var->type[i] == GETINPUT) {
-            fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-            if(var->GetInput.variableType[i] == INTEGER) {
-                fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
-            } else if(var->GetInput.variableType[i] == TEXT) {
-                fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
-            } else if(var->GetInput.variableType[i] == FLOAT) {
-                fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
-            }  
-        }
+            if(var->GetInput.AssignOrNot[i] == 0) {
+                fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
+                if(var->GetInput.variableType[i] == INTEGER) {
+                    fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+                } else if(var->GetInput.variableType[i] == TEXT) {
+                    fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
+                } else if(var->GetInput.variableType[i] == FLOAT) {
+                    fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+                }  
+            } else {
+                if(var->GetInput.variableType[i] == INTEGER) {
+                    fprintf(file,"    int %s;\n",var->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+                } else if(var->GetInput.variableType[i] == TEXT) {
+                    fprintf(file,"    char %s[256];\n",var->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
+                } else if(var->GetInput.variableType[i] == FLOAT) {
+                    fprintf(file,"    float %s;\n",var->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+                } 
+            }
+        } 
     }
 }
 
@@ -460,20 +551,19 @@ int main(int argc,char *argv[]) {
 
     char line[256];
     while(fgets(line,sizeof(line),input)) {
-        char *ptr = line; 
-        while(*ptr != '\0') {
-            int check = parseTokens(&var,&ptr);
-            if(check == -1) { remove("output.c"); return 1; }
-        }
+        char *ptr = line;
+        int check = parseTokens(&var,&ptr);
+        if(check == -1) { remove("output.c"); return -1; }
     }
 
+    fclose(input);
     codeGen(file,&var);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
 
     system("gcc output.c -o main");
-    remove("output.c");
+    system("rm output.c");
 
     return 0;
 }

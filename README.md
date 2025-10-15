@@ -28,6 +28,10 @@ write("How are you!\n");
 
 number = getInput("Enter a number: ");
 name = getInput("Enter your name: ");
+
+# OR
+let newVar1: integer = getInput("Enter a number: ");
+let newVar2: string = getInput("Enter your name: ");
 ...
 ```
 ---
