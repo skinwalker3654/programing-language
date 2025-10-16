@@ -147,7 +147,55 @@ typedef struct Variable {
     int counter;
 } Variable;
 
-int parseFunction(Variable *ptr,char **input) {
+int parseWriteFuncVar(Variable *ptr,Token token,char **input) {
+    int foundIdx = -1;
+    int index = -1;
+    for(int i=0; i<ptr->counter; i++) {
+        if(strcmp(ptr->var_name[i],token.name)==0) {
+            foundIdx = 1;
+            index = i;
+            break;
+        }
+    }
+
+    if(foundIdx != -1) {
+        if(ptr->GetInput.AssignOrNot[index] == 0)
+            ptr->Write.type[ptr->counter] = ptr->type[index];
+        else if(ptr->GetInput.AssignOrNot[index] == 1)
+            ptr->Write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
+        else 
+            ptr->Write.type[ptr->counter] = ptr->type[index];
+
+        strcpy(ptr->Write.var_name[ptr->counter],token.name);
+        ptr->Write.TextOrVar[ptr->counter] = 1;
+
+        token = getNextToken(input);
+        if(token.type != RPAREN) {
+            printf("Error: Forgot to close the parenthesis -> ')'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != SEMICOLON) {
+            printf("Error: Forgot the semicolon -> ';'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != EOF_T) {
+            printf("Error: Invalid arguments passed\n");
+            return -1;
+        }
+
+        ptr->counter++;
+        return 0;
+    } else {
+        printf("Error: Variable -> '%s' not found\n",token.name);
+        return -1;
+    }
+}
+
+int parseWriteFunc(Variable *ptr,char **input) {
     ptr->type[ptr->counter] = WRITE;
     Token token = getNextToken(input);
     if(token.type != LPAREN) {
@@ -162,50 +210,9 @@ int parseFunction(Variable *ptr,char **input) {
     }
 
     if(token.type == VAR_NAME) {
-        int foundIdx = -1;
-        int index = -1;
-        for(int i=0; i<ptr->counter; i++) {
-            if(strcmp(ptr->var_name[i],token.name)==0) {
-                foundIdx = 1;
-                index = i;
-                break;
-            }
-        }
-
-        if(foundIdx != -1) {
-            if(ptr->GetInput.AssignOrNot[index] == 0)
-                ptr->Write.type[ptr->counter] = ptr->type[index];
-            else if(ptr->GetInput.AssignOrNot[index] == 1)
-                ptr->Write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
-            else 
-                ptr->Write.type[ptr->counter] = ptr->type[index];
-            strcpy(ptr->Write.var_name[ptr->counter],token.name);
-            ptr->Write.TextOrVar[ptr->counter] = 1;
-
-            token = getNextToken(input);
-            if(token.type != RPAREN) {
-                printf("Error: Forgot to close the parenthesis -> ')'\n");
-                return -1;
-            }
-
-            token = getNextToken(input);
-            if(token.type != SEMICOLON) {
-                printf("Error: Forgot the semicolon -> ';'\n");
-                return -1;
-            }
-
-            token = getNextToken(input);
-            if(token.type != EOF_T) {
-                printf("Error: Invalid arguments passed\n");
-                return -1;
-            }
-
-            ptr->counter++;
-            return 0;
-        } else {
-            printf("Error: Variable -> '%s' not found\n",token.name);
-            return -1;
-        }
+        int check = parseWriteFuncVar(ptr,token,input);
+        if(check == -1) { return -1; }
+        return 0;
     }
 
     ptr->Write.TextOrVar[ptr->counter] = 0;
@@ -233,86 +240,151 @@ int parseFunction(Variable *ptr,char **input) {
     return 0;
 }
 
+int parseAssignGetInput(Variable *var,Token token,char **input) {
+    int indexIdx = -1;
+    int foundIdx = 0;
+    for(int i=0; i<var->counter; i++) {
+        if(strcmp(token.name,var->var_name[i])==0) {
+            foundIdx = 1;
+            indexIdx = i;
+            break;
+        }
+    }
+
+    if(!foundIdx) {
+        printf("Error: Variable '%s' not found\n",token.name);
+        return -1;
+    }
+        
+    if(var->type[indexIdx] == BOOL) {
+        printf("Error: Cannot take input on booleans\n");
+        return -1;
+    }
+
+    var->GetInput.variableType[var->counter] = var->type[indexIdx];
+    strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
+
+    token = getNextToken(input);
+    if(token.type != EQUAL) {
+        printf("Error: Forgot to assing the value -> '='\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != GETINPUT) {
+        printf("Error: Invalid variable\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != LPAREN) {
+        printf("Error: Forgot to assing the -> '('\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != STRINGVALUE) {
+        printf("Error: Text must be inside of \"\"\n");
+        return -1;
+    }
+
+    strcpy(var->GetInput.content[var->counter],token.name);
+
+    token = getNextToken(input);
+    if(token.type != RPAREN) {
+        printf("Error: Forgot to assign the -> ')'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != SEMICOLON) {
+        printf("Error: Forgot a semicolon -> ';'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != EOF_T) {
+        printf("Error: Invalid arguments passed\n");
+        return -1;
+    }
+
+    var->type[var->counter] = GETINPUT;
+    var->counter++;
+
+    return 0;
+}
+
+int parseGetInput(Variable *var,Token token,char **input,char *tempVarName,int tempType) {
+    int foundIdx = -1;
+    for(int i=0; i<var->counter; i++) {
+        if(strcmp(var->var_name[i],tempVarName)==0) {
+            foundIdx = 1;
+            break;
+        }
+    }
+        
+    if(foundIdx == 1) {
+        printf("Error: Cannot create this variable bc variable name already exists\n");
+        return -1;
+    }
+
+    var->GetInput.AssignOrNot[var->counter] = 1;
+    strcpy(var->GetInput.var_name_to_get_input[var->counter],tempVarName);
+    if(tempType == BOOL) {
+        printf("Error: Cannot take input on booleans\n");
+        return -1;
+    }
+
+    var->GetInput.variableType[var->counter] = tempType;
+    token = getNextToken(input);
+    if(token.type != LPAREN) {
+        printf("Error: Forgot to assign the parenthesis -> '('\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != STRINGVALUE) {
+        printf("Error: Prompt must be inside of -> \"\"\n");
+        return -1;
+    }
+        
+    strcpy(var->GetInput.content[var->counter],token.name);
+    token = getNextToken(input);
+    if(token.type != RPAREN) {
+        printf("Error: Forgot to close the parenthesis -> ')'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != SEMICOLON) {
+        printf("Error: Forgot to put a semicolon at the end -> ';'\n");
+        return -1;
+    }
+
+    token = getNextToken(input);
+    if(token.type != EOF_T) {
+        printf("Error: Invalid arguments passed\n");
+        return -1;
+    }
+
+    var->type[var->counter] = GETINPUT;
+    var->counter++;
+
+    return 0;
+}
+
 int parseTokens(Variable *var,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
     if(token.type == VAR_NAME) {
-        int indexIdx = -1;
-        int foundIdx = 0;
-        for(int i=0; i<var->counter; i++) {
-            if(strcmp(token.name,var->var_name[i])==0) {
-                foundIdx = 1;
-                indexIdx = i;
-                break;
-            }
-        }
-
-        if(!foundIdx) {
-            printf("Error: Variable '%s' not found\n",token.name);
-            return -1;
-        }
-        
-        if(var->type[indexIdx] == BOOL) {
-            printf("Error: Cannot take input on booleans\n");
-            return -1;
-        }
-
-        var->GetInput.variableType[var->counter] = var->type[indexIdx];
-        strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
-
-        token = getNextToken(input);
-        if(token.type != EQUAL) {
-            printf("Error: Forgot to assing the value -> '='\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != GETINPUT) {
-            printf("Error: Invalid variable\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != LPAREN) {
-            printf("Error: Forgot to assing the -> '('\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != STRINGVALUE) {
-            printf("Error: Text must be inside of \"\"\n");
-            return -1;
-        }
-
-        strcpy(var->GetInput.content[var->counter],token.name);
-
-        token = getNextToken(input);
-        if(token.type != RPAREN) {
-            printf("Error: Forgot to assign the -> ')'\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != SEMICOLON) {
-            printf("Error: Forgot a semicolon -> ';'\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != EOF_T) {
-            printf("Error: Invalid arguments passed\n");
-            return -1;
-        }
-
-        var->type[var->counter] = GETINPUT;
-        var->counter++;
-
+        int check = parseAssignGetInput(var,token,input);
+        if(check == -1) { return -1; }
         return 0;
     }
 
     if(token.type == WRITE) {
-        if(parseFunction(var,input)==-1) return -1;
+        if(parseWriteFunc(var,input)==-1) return -1;
         return 0;
     }
 
@@ -357,64 +429,11 @@ int parseTokens(Variable *var,char **input) {
 
     token = getNextToken(input);
     if(token.type == GETINPUT) {
-        int foundIdx = -1;
-        for(int i=0; i<var->counter; i++) {
-            if(strcmp(var->var_name[i],tempVarName)==0) {
-                foundIdx = 1;
-                break;
-            }
-        }
-        
-        if(foundIdx == 1) {
-            printf("Error: Cannot create this variable bc variable name already exists\n");
-            return -1;
-        }
-
-        var->GetInput.AssignOrNot[var->counter] = 1;
-        strcpy(var->GetInput.var_name_to_get_input[var->counter],tempVarName);
-        if(tempType == BOOL) {
-            printf("Error: Cannot take input on booleans\n");
-            return -1;
-        }
-
-        var->GetInput.variableType[var->counter] = tempType;
-        token = getNextToken(input);
-        if(token.type != LPAREN) {
-            printf("Error: Forgot to assign the parenthesis -> '('\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != STRINGVALUE) {
-            printf("Error: Prompt must be inside of -> \"\"\n");
-            return -1;
-        }
-        
-        strcpy(var->GetInput.content[var->counter],token.name);
-        token = getNextToken(input);
-        if(token.type != RPAREN) {
-            printf("Error: Forgot to close the parenthesis -> ')'\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != SEMICOLON) {
-            printf("Error: Forgot to put a semicolon at the end -> ';'\n");
-            return -1;
-        }
-
-        token = getNextToken(input);
-        if(token.type != EOF_T) {
-            printf("Error: Invalid arguments passed\n");
-            return -1;
-        }
-
-        var->type[var->counter] = GETINPUT;
-        var->counter++;
-
+        int check = parseGetInput(var,token,input,tempVarName,tempType);
+        if(check == -1) { return -1; }
         return 0;
     }
-
+    
     if(token.type != VALUE && token.type != STRINGVALUE && token.type != FALSE_ && token.type != TRUE_) {
         printf("Error: Invalid value '%s'\n",token.name);
         return -1;
