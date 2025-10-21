@@ -77,7 +77,7 @@ Token getNextToken(char **input) {
         }
     }
 
-    if(isdigit(**input)||**input=='-') {
+    if(isdigit(**input)||(**input == '-' && isdigit((*input)[1]))) {
         Token token = {VALUE};
         int counter = 0;
         if(**input == '-') {
