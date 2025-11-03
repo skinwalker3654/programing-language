@@ -123,7 +123,7 @@ Token getNextToken(char **input) {
     }
 }
 
-typedef struct Variable {
+typedef struct Values {
     TokenType type[200];
     char var_name[200][40];
     struct {
@@ -145,9 +145,9 @@ typedef struct Variable {
         TokenType variableType[200];
     } GetInput;
     int counter;
-} Variable;
+} Values;
 
-int parseWriteFuncVar(Variable *ptr,Token token,char **input) {
+int parseWriteFuncVar(Values *ptr,Token token,char **input) {
     int foundIdx = -1;
     int index = -1;
     for(int i=0; i<ptr->counter; i++) {
@@ -190,12 +190,12 @@ int parseWriteFuncVar(Variable *ptr,Token token,char **input) {
         ptr->counter++;
         return 0;
     } else {
-        printf("Error: Variable -> '%s' not found\n",token.name);
+        printf("Error: Values -> '%s' not found\n",token.name);
         return -1;
     }
 }
 
-int parseWriteFunc(Variable *ptr,char **input) {
+int parseWriteFunc(Values *ptr,char **input) {
     ptr->type[ptr->counter] = WRITE;
     Token token = getNextToken(input);
     if(token.type != LPAREN) {
@@ -240,7 +240,7 @@ int parseWriteFunc(Variable *ptr,char **input) {
     return 0;
 }
 
-int parseAssignGetInput(Variable *var,Token token,char **input) {
+int parseAssignGetInput(Values *var,Token token,char **input) {
     int indexIdx = -1;
     int foundIdx = 0;
     for(int i=0; i<var->counter; i++) {
@@ -252,7 +252,7 @@ int parseAssignGetInput(Variable *var,Token token,char **input) {
     }
 
     if(!foundIdx) {
-        printf("Error: Variable '%s' not found\n",token.name);
+        printf("Error: Values '%s' not found\n",token.name);
         return -1;
     }
         
@@ -314,7 +314,7 @@ int parseAssignGetInput(Variable *var,Token token,char **input) {
     return 0;
 }
 
-int parseGetInput(Variable *var,Token token,char **input,char *tempVarName,int tempType) {
+int parseGetInput(Values *var,Token token,char **input,char *tempVarName,int tempType) {
     int foundIdx = -1;
     for(int i=0; i<var->counter; i++) {
         if(strcmp(var->var_name[i],tempVarName)==0) {
@@ -373,7 +373,7 @@ int parseGetInput(Variable *var,Token token,char **input,char *tempVarName,int t
     return 0;
 }
 
-int parseTokens(Variable *var,char **input) {
+int parseTokens(Values *var,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
@@ -498,7 +498,7 @@ int parseTokens(Variable *var,char **input) {
     return 0;
 }
 
-void codeGen(FILE *file,Variable *var) {
+void codeGen(FILE *file,Values *var) {
     for(int i=0; i<var->counter; i++) {
         if(var->type[i] == INTEGER) {
             fprintf(file,"    int %s = %d;\n",var->var_name[i],var->Values.int_value[i]);
@@ -558,7 +558,7 @@ int main(int argc,char *argv[]) {
         return 1;
     }
 
-    Variable var = {.counter=0};
+    Values var = {.counter=0};
     FILE *input = fopen(argv[1],"r");
     if(!input) {
         printf("Error: Failed to open the file\n");
