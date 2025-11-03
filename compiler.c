@@ -33,6 +33,7 @@ Token getNextToken(char **input) {
     while(isspace(**input)) (*input)++;
     if(**input == '\0') return (Token){EOF_T,""};
 
+    if(**input == '#') while(**input != '\0') (*input)++;
     if(isalpha(**input)) {
         Token token;
         int counter = 0;
