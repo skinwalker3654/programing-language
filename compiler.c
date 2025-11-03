@@ -559,7 +559,7 @@ int main(int argc,char *argv[]) {
         return 1;
     }
 
-    Values var = {.counter=0};
+    Values val= {.counter=0};
     FILE *input = fopen(argv[1],"r");
     if(!input) {
         printf("Error: Failed to open the file\n");
@@ -572,12 +572,12 @@ int main(int argc,char *argv[]) {
     char line[256];
     while(fgets(line,sizeof(line),input)) {
         char *ptr = line;
-        int check = parseTokens(&var,&ptr);
+        int check = parseTokens(&val,&ptr);
         if(check == -1) { remove("output.c"); return -1; }
     }
 
     fclose(input);
-    codeGen(file,&var);
+    codeGen(file,&val);
 
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
