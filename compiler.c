@@ -241,11 +241,11 @@ int parseWriteFunc(Values *ptr,char **input) {
     return 0;
 }
 
-int parseAssignGetInput(Values *var,Token token,char **input) {
+int parseAssignGetInput(Values *val,Token token,char **input) {
     int indexIdx = -1;
     int foundIdx = 0;
-    for(int i=0; i<var->counter; i++) {
-        if(strcmp(token.name,var->var_name[i])==0) {
+    for(int i=0; i<val->counter; i++) {
+        if(strcmp(token.name,val->var_name[i])==0) {
             foundIdx = 1;
             indexIdx = i;
             break;
@@ -257,13 +257,13 @@ int parseAssignGetInput(Values *var,Token token,char **input) {
         return -1;
     }
         
-    if(var->type[indexIdx] == BOOL) {
+    if(val->type[indexIdx] == BOOL) {
         printf("Error: Cannot take input on booleans\n");
         return -1;
     }
 
-    var->GetInput.variableType[var->counter] = var->type[indexIdx];
-    strcpy(var->GetInput.var_name_to_get_input[var->counter],token.name);
+    val->GetInput.variableType[val->counter] = val->type[indexIdx];
+    strcpy(val->GetInput.var_name_to_get_input[val->counter],token.name);
 
     token = getNextToken(input);
     if(token.type != EQUAL) {
@@ -273,7 +273,7 @@ int parseAssignGetInput(Values *var,Token token,char **input) {
 
     token = getNextToken(input);
     if(token.type != GETINPUT) {
-        printf("Error: Invalid variable\n");
+        printf("Error: Invalid valiable\n");
         return -1;
     }
 
@@ -289,7 +289,7 @@ int parseAssignGetInput(Values *var,Token token,char **input) {
         return -1;
     }
 
-    strcpy(var->GetInput.content[var->counter],token.name);
+    strcpy(val->GetInput.content[val->counter],token.name);
 
     token = getNextToken(input);
     if(token.type != RPAREN) {
@@ -309,34 +309,34 @@ int parseAssignGetInput(Values *var,Token token,char **input) {
         return -1;
     }
 
-    var->type[var->counter] = GETINPUT;
-    var->counter++;
+    val->type[val->counter] = GETINPUT;
+    val->counter++;
 
     return 0;
 }
 
-int parseGetInput(Values *var,Token token,char **input,char *tempVarName,int tempType) {
+int parseGetInput(Values *val,Token token,char **input,char *tempVarName,int tempType) {
     int foundIdx = -1;
-    for(int i=0; i<var->counter; i++) {
-        if(strcmp(var->var_name[i],tempVarName)==0) {
+    for(int i=0; i<val->counter; i++) {
+        if(strcmp(val->var_name[i],tempVarName)==0) {
             foundIdx = 1;
             break;
         }
     }
         
     if(foundIdx == 1) {
-        printf("Error: Cannot create this variable bc variable name already exists\n");
+        printf("Error: Cannot create this valiable bc variable name already exists\n");
         return -1;
     }
 
-    var->GetInput.AssignOrNot[var->counter] = 1;
-    strcpy(var->GetInput.var_name_to_get_input[var->counter],tempVarName);
+    val->GetInput.AssignOrNot[val->counter] = 1;
+    strcpy(val->GetInput.var_name_to_get_input[val->counter],tempVarName);
     if(tempType == BOOL) {
         printf("Error: Cannot take input on booleans\n");
         return -1;
     }
 
-    var->GetInput.variableType[var->counter] = tempType;
+    val->GetInput.variableType[val->counter] = tempType;
     token = getNextToken(input);
     if(token.type != LPAREN) {
         printf("Error: Forgot to assign the parenthesis -> '('\n");
@@ -349,7 +349,7 @@ int parseGetInput(Values *var,Token token,char **input,char *tempVarName,int tem
         return -1;
     }
         
-    strcpy(var->GetInput.content[var->counter],token.name);
+    strcpy(val->GetInput.content[val->counter],token.name);
     token = getNextToken(input);
     if(token.type != RPAREN) {
         printf("Error: Forgot to close the parenthesis -> ')'\n");
@@ -368,45 +368,45 @@ int parseGetInput(Values *var,Token token,char **input,char *tempVarName,int tem
         return -1;
     }
 
-    var->type[var->counter] = GETINPUT;
-    var->counter++;
+    val->type[val->counter] = GETINPUT;
+    val->counter++;
 
     return 0;
 }
 
-int parseTokens(Values *var,char **input) {
+int parseTokens(Values *val,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
     if(token.type == VAR_NAME) {
-        int check = parseAssignGetInput(var,token,input);
+        int check = parseAssignGetInput(val,token,input);
         if(check == -1) { return -1; }
         return 0;
     }
 
     if(token.type == WRITE) {
-        if(parseWriteFunc(var,input)==-1) return -1;
+        if(parseWriteFunc(val,input)==-1) return -1;
         return 0;
     }
 
     if(token.type != LET_KEYWORD && token.type != WRITE) {
-        printf("Error: Forgot to assing the variable using 'let'\n");
+        printf("Error: Forgot to assing the valiable using 'let'\n");
         return -1;
     } 
 
     token = getNextToken(input);
     if(token.type != VAR_NAME) {
-        printf("Error: Invalid variable name '%s'\n",token.name);
+        printf("Error: Invalid valiable name '%s'\n",token.name);
         return -1;
     } 
 
     char tempVarName[40];
     strcpy(tempVarName,token.name);
-    strcpy(var->var_name[var->counter],token.name);
+    strcpy(val->var_name[val->counter],token.name);
 
     token = getNextToken(input);
     if(token.type != COLON_CHAR) {
-        printf("Error: Forgot to assing ':' for variable values\n");
+        printf("Error: Forgot to assing ':' for valiable values\n");
         return -1;
     }
 
@@ -420,17 +420,17 @@ int parseTokens(Values *var,char **input) {
     }
 
     int tempType = token.type;
-    var->type[var->counter] = token.type;
+    val->type[val->counter] = token.type;
 
     token = getNextToken(input);
     if(token.type != EQUAL) {
-        printf("Error: Forgot to assing the variable with '='\n");
+        printf("Error: Forgot to assing the valiable with '='\n");
         return -1;
     }
 
     token = getNextToken(input);
     if(token.type == GETINPUT) {
-        int check = parseGetInput(var,token,input,tempVarName,tempType);
+        int check = parseGetInput(val,token,input,tempVarName,tempType);
         if(check == -1) { return -1; }
         return 0;
     }
@@ -440,7 +440,7 @@ int parseTokens(Values *var,char **input) {
         return -1;
     }
 
-    if(var->type[var->counter] == INTEGER) {
+    if(val->type[val->counter] == INTEGER) {
         if(token.type == STRINGVALUE) {
             printf("Error: Integers cannot be inside \"\"\n");
             return -1;
@@ -453,15 +453,15 @@ int parseTokens(Values *var,char **input) {
             return -1;
         }
 
-        var->Values.int_value[var->counter] = number;
-    } else if(var->type[var->counter] == TEXT) {
+        val->Values.int_value[val->counter] = number;
+    } else if(val->type[val->counter] == TEXT) {
         if(token.type != STRINGVALUE) {
             printf("Error: Strings must be inside \"\"\n");
             return -1;
         }
 
-        strcpy(var->Values.stringValue[var->counter],token.name);
-    } else if(var->type[var->counter] == FLOAT) {
+        strcpy(val->Values.stringValue[val->counter],token.name);
+    } else if(val->type[val->counter] == FLOAT) {
         if(token.type == STRINGVALUE) {
             printf("Error: Floats cannot have \"\"\n");
             return -1;
@@ -474,10 +474,10 @@ int parseTokens(Values *var,char **input) {
             return -1;
         }
 
-        var->Values.float_value[var->counter] = number;
-    } else if(var->type[var->counter] == BOOL) {
-        if(token.type == TRUE_) strcpy(var->Values.boolean[var->counter],"true");
-        else if(token.type == FALSE_) strcpy(var->Values.boolean[var->counter],"false");
+        val->Values.float_value[val->counter] = number;
+    } else if(val->type[val->counter] == BOOL) {
+        if(token.type == TRUE_) strcpy(val->Values.boolean[val->counter],"true");
+        else if(token.type == FALSE_) strcpy(val->Values.boolean[val->counter],"false");
         else { printf("Error: Booleans cannot be inside of \"\"\n"); return -1; }
     }
 
@@ -493,59 +493,59 @@ int parseTokens(Values *var,char **input) {
         return -1;
     }
 
-    var->GetInput.AssignOrNot[var->counter] = 0;
-    var->counter++;
+    val->GetInput.AssignOrNot[val->counter] = 0;
+    val->counter++;
 
     return 0;
 }
 
-void codeGen(FILE *file,Values *var) {
-    for(int i=0; i<var->counter; i++) {
-        if(var->type[i] == INTEGER) {
-            fprintf(file,"    int %s = %d;\n",var->var_name[i],var->Values.int_value[i]);
-        } else if(var->type[i] == TEXT) {
-            fprintf(file,"    char %s[256] = \"%s\";\n",var->var_name[i],var->Values.stringValue[i]);
-        } else if(var->type[i] == FLOAT) {
-            fprintf(file,"    float %s = %f;\n",var->var_name[i],var->Values.float_value[i]);
-        } else if(var->type[i] == BOOL) {
-            fprintf(file,"    bool %s = %s;\n",var->var_name[i],var->Values.boolean[i]);
-        } else if(var->type[i] == WRITE) {
-            if(var->Write.TextOrVar[i] == 0) {
-                fprintf(file,"    printf(\"%s\");\n",var->Write.write_func_content[i]);
-            } else if(var->Write.TextOrVar[i] == 1){
-                if(var->Write.type[i] == INTEGER) {
-                    fprintf(file,"    printf(\"%%d\\n\",%s);\n",var->Write.var_name[i]);
-                } else if(var->Write.type[i] == FLOAT) {
-                    fprintf(file,"    printf(\"%%f\\n\",%s);\n",var->Write.var_name[i]);
-                } else if(var->Write.type[i] == TEXT) {
-                    fprintf(file,"    printf(\"%%s\\n\",%s);\n",var->Write.var_name[i]);
-                } else if(var->Write.type[i] == BOOL) {
-                    fprintf(file,"    printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n", var->Write.var_name[i]);
+void codeGen(FILE *file,Values *val) {
+    for(int i=0; i<val->counter; i++) {
+        if(val->type[i] == INTEGER) {
+            fprintf(file,"    int %s = %d;\n",val->var_name[i],val->Values.int_value[i]);
+        } else if(val->type[i] == TEXT) {
+            fprintf(file,"    char %s[256] = \"%s\";\n",val->var_name[i],val->Values.stringValue[i]);
+        } else if(val->type[i] == FLOAT) {
+            fprintf(file,"    float %s = %f;\n",val->var_name[i],val->Values.float_value[i]);
+        } else if(val->type[i] == BOOL) {
+            fprintf(file,"    bool %s = %s;\n",val->var_name[i],val->Values.boolean[i]);
+        } else if(val->type[i] == WRITE) {
+            if(val->Write.TextOrVar[i] == 0) {
+                fprintf(file,"    printf(\"%s\");\n",val->Write.write_func_content[i]);
+            } else if(val->Write.TextOrVar[i] == 1){
+                if(val->Write.type[i] == INTEGER) {
+                    fprintf(file,"    printf(\"%%d\\n\",%s);\n",val->Write.var_name[i]);
+                } else if(val->Write.type[i] == FLOAT) {
+                    fprintf(file,"    printf(\"%%f\\n\",%s);\n",val->Write.var_name[i]);
+                } else if(val->Write.type[i] == TEXT) {
+                    fprintf(file,"    printf(\"%%s\\n\",%s);\n",val->Write.var_name[i]);
+                } else if(val->Write.type[i] == BOOL) {
+                    fprintf(file,"    printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n", val->Write.var_name[i]);
                 }
             }
-        } else if(var->type[i] == GETINPUT) {
-            if(var->GetInput.AssignOrNot[i] == 0) {
-                fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-                if(var->GetInput.variableType[i] == INTEGER) {
-                    fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
-                } else if(var->GetInput.variableType[i] == TEXT) {
-                    fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
-                } else if(var->GetInput.variableType[i] == FLOAT) {
-                    fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+        } else if(val->type[i] == GETINPUT) {
+            if(val->GetInput.AssignOrNot[i] == 0) {
+                fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
+                if(val->GetInput.variableType[i] == INTEGER) {
+                    fprintf(file,"    scanf(\"%%d\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                } else if(val->GetInput.variableType[i] == TEXT) {
+                    fprintf(file,"    scanf(\"%%s\",%s);\n",val->GetInput.var_name_to_get_input[i]);
+                } else if(val->GetInput.variableType[i] == FLOAT) {
+                    fprintf(file,"    scanf(\"%%f\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
                 }  
             } else {
-                if(var->GetInput.variableType[i] == INTEGER) {
-                    fprintf(file,"    int %s;\n",var->GetInput.var_name_to_get_input[i]);
-                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-                    fprintf(file,"    scanf(\"%%d\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
-                } else if(var->GetInput.variableType[i] == TEXT) {
-                    fprintf(file,"    char %s[256];\n",var->GetInput.var_name_to_get_input[i]);
-                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-                    fprintf(file,"    scanf(\"%%s\",%s);\n",var->GetInput.var_name_to_get_input[i]);
-                } else if(var->GetInput.variableType[i] == FLOAT) {
-                    fprintf(file,"    float %s;\n",var->GetInput.var_name_to_get_input[i]);
-                    fprintf(file,"    printf(\"%s\");\n",var->GetInput.content[i]);
-                    fprintf(file,"    scanf(\"%%f\",&%s);\n",var->GetInput.var_name_to_get_input[i]);
+                if(val->GetInput.variableType[i] == INTEGER) {
+                    fprintf(file,"    int %s;\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%d\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                } else if(val->GetInput.variableType[i] == TEXT) {
+                    fprintf(file,"    char %s[256];\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%s\",%s);\n",val->GetInput.var_name_to_get_input[i]);
+                } else if(val->GetInput.variableType[i] == FLOAT) {
+                    fprintf(file,"    float %s;\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
+                    fprintf(file,"    scanf(\"%%f\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
                 } 
             }
         } 
