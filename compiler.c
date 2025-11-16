@@ -21,6 +21,8 @@ typedef enum {
     GETINPUT,
     LPAREN,
     RPAREN,
+    LOOP,
+    TO,
     EOF_T,
 } TokenType;
 
@@ -71,6 +73,12 @@ Token getNextToken(char **input) {
             return token;
         } else if(strcmp(token.name,"false")==0) {
             token.type = FALSE_;
+            return token;
+        } else if(strcmp(token.name,"loop")==0) {
+            token.type = LOOP;
+            return token;
+        } else if(strcmp(token.name,"to")==0) {
+            token.type = TO;
             return token;
         } else {
             token.type = VAR_NAME;
@@ -124,6 +132,13 @@ Token getNextToken(char **input) {
     }
 }
 
+typedef struct Write {
+    int TextOrVar[200];
+    char write_func_content[200][100];
+    char var_name[200][40];
+    TokenType type[200];
+} Write;
+
 typedef struct Values {
     TokenType type[200];
     char var_name[200][40];
@@ -134,10 +149,7 @@ typedef struct Values {
         char boolean[200][20];
     } Values;
     struct {
-        int TextOrVar[200]; //0 = CONTENT | 1 = VARIABLE
-        char write_func_content[200][100];
-        char var_name[200][40];
-        TokenType type[200];
+        Write write;
     } Write;
     struct {
         int AssignOrNot[200]; //0 = ASSIGN | 1 = NOT ASSIGN
@@ -145,31 +157,136 @@ typedef struct Values {
         char var_name_to_get_input[200][40];
         TokenType variableType[200];
     } GetInput;
+    struct {
+        int end[200];
+        char var_name[200][40];
+        Write write; 
+    } Loop;
     int counter;
 } Values;
 
-int parseWriteFuncVar(Values *ptr,Token token,char **input) {
-    int foundIdx = -1;
-    int index = -1;
-    for(int i=0; i<ptr->counter; i++) {
-        if(strcmp(ptr->var_name[i],token.name)==0) {
-            foundIdx = 1;
-            index = i;
-            break;
+int parseWriteFuncVar(Values *ptr,Token token,char **input,int writeOrloop) {
+    if(writeOrloop == 0) {
+        int foundIdx = -1;
+        int index = -1;
+        for(int i=0; i<=ptr->counter; i++) {
+            if(strcmp(ptr->var_name[i],token.name)==0) {
+                foundIdx = 1;
+                index = i;
+                break;
+            }
+        }
+
+        if(foundIdx != -1) {
+            if(ptr->GetInput.AssignOrNot[index] == 0)
+                ptr->Write.write.type[ptr->counter] = ptr->type[index];
+            else if(ptr->GetInput.AssignOrNot[index] == 1)
+                ptr->Write.write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
+            else 
+                ptr->Write.write.type[ptr->counter] = ptr->type[index];
+    
+            strcpy(ptr->Write.write.var_name[ptr->counter],token.name);
+            ptr->Write.write.TextOrVar[ptr->counter] = 1;
+    
+            token = getNextToken(input);
+            if(token.type != RPAREN) {
+                printf("Error: Forgot to close the parenthesis -> ')'\n");
+                return -1;
+            }
+    
+            token = getNextToken(input);
+            if(token.type != SEMICOLON) {
+                printf("Error: Forgot the semicolon -> ';'\n");
+                return -1;
+            }
+    
+            token = getNextToken(input);
+            if(token.type != EOF_T) {
+                printf("Error: Invalid arguments passed\n");
+                return -1;
+            }
+
+            ptr->counter++;
+            return 0;
+        } else {
+            printf("Error: Variable -> '%s' not found\n",token.name);
+            return -1;
+        }
+    } else if(writeOrloop == 1) {
+        int foundIdx = -1;
+        int index = -1;
+        for(int i=0; i<=ptr->counter; i++) {
+            if(strcmp(ptr->var_name[i],token.name)==0) {
+                foundIdx = 1;
+                index = i;
+                break;
+            }
+        }
+
+        if(foundIdx != -1) {
+            if(ptr->GetInput.AssignOrNot[index] == 0)
+                ptr->Loop.write.type[ptr->counter] = ptr->type[index];
+            else if(ptr->GetInput.AssignOrNot[index] == 1)
+                ptr->Loop.write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
+            else 
+                ptr->Loop.write.type[ptr->counter] = ptr->type[index];
+    
+            strcpy(ptr->Loop.write.var_name[ptr->counter],token.name);
+            ptr->Loop.write.TextOrVar[ptr->counter] = 1;
+
+            token = getNextToken(input);
+            if(token.type != RPAREN) {
+                printf("Error: Forgot to close the parenthesis -> ')'\n");
+                return -1;
+            }
+
+            token = getNextToken(input);
+            if(token.type != SEMICOLON) {
+                printf("Error: Forgot the semicolon -> ';'\n");
+                return -1;
+            }
+
+            token = getNextToken(input);
+            if(token.type != EOF_T) {
+                printf("Error: Invalid arguments passed\n");
+                return -1;
+            }
+
+            ptr->counter++;
+            return 0;
+        } else {
+            printf("Error: Variable -> '%s' not found\n",token.name);
+            return -1;
         }
     }
 
-    if(foundIdx != -1) {
-        if(ptr->GetInput.AssignOrNot[index] == 0)
-            ptr->Write.type[ptr->counter] = ptr->type[index];
-        else if(ptr->GetInput.AssignOrNot[index] == 1)
-            ptr->Write.type[ptr->counter] = ptr->GetInput.variableType[index]; 
-        else 
-            ptr->Write.type[ptr->counter] = ptr->type[index];
+    return -1;
+}
 
-        strcpy(ptr->Write.var_name[ptr->counter],token.name);
-        ptr->Write.TextOrVar[ptr->counter] = 1;
+int parseWriteFunc(Values *ptr,char **input,int writeOrloop) {
+    if(writeOrloop == 0) {
+        ptr->type[ptr->counter] = WRITE;
+        Token token = getNextToken(input);
+        if(token.type != LPAREN) {
+            printf("Error: Forgot parenthesis -> '('\n");
+            return -1;
+        } 
+    
+        token = getNextToken(input);
+        if(token.type != STRINGVALUE && token.type != VAR_NAME) {
+            printf("Error: Invalid content: %s\n",token.name);
+            return -1;
+        }
 
+        if(token.type == VAR_NAME) {
+            int check = parseWriteFuncVar(ptr,token,input,0);
+            if(check == -1) { return -1; }
+            return 0;
+        }
+
+        ptr->Write.write.TextOrVar[ptr->counter] = 0;
+        strcpy(ptr->Write.write.write_func_content[ptr->counter],token.name);
+    
         token = getNextToken(input);
         if(token.type != RPAREN) {
             printf("Error: Forgot to close the parenthesis -> ')'\n");
@@ -190,55 +307,52 @@ int parseWriteFuncVar(Values *ptr,Token token,char **input) {
 
         ptr->counter++;
         return 0;
-    } else {
-        printf("Error: Values -> '%s' not found\n",token.name);
-        return -1;
-    }
-}
-
-int parseWriteFunc(Values *ptr,char **input) {
-    ptr->type[ptr->counter] = WRITE;
-    Token token = getNextToken(input);
-    if(token.type != LPAREN) {
-        printf("Error: Forgot parenthesis -> '('\n");
-        return -1;
-    } 
+    } else if(writeOrloop == 1) {
+        ptr->type[ptr->counter] = LOOP;
+        Token token = getNextToken(input);
+        if(token.type != LPAREN) {
+            printf("Error: Forgot parenthesis -> '('\n");
+            return -1;
+        } 
     
-    token = getNextToken(input);
-    if(token.type != STRINGVALUE && token.type != VAR_NAME) {
-        printf("Error: Invalid content: %s\n",token.name);
-        return -1;
+        token = getNextToken(input);
+        if(token.type != STRINGVALUE && token.type != VAR_NAME) {
+            printf("Error: Invalid content: %s\n",token.name);
+            return -1;
+        }
+
+        if(token.type == VAR_NAME) {
+            int check = parseWriteFuncVar(ptr,token,input,1);
+            if(check == -1) { return -1; }
+            return 0;
+        }
+
+        ptr->Loop.write.TextOrVar[ptr->counter] = 0;
+        strcpy(ptr->Loop.write.write_func_content[ptr->counter],token.name);
+    
+        token = getNextToken(input);
+        if(token.type != RPAREN) {
+            printf("Error: Forgot to close the parenthesis -> ')'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != SEMICOLON) {
+            printf("Error: Forgot the semicolon -> ';'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != EOF_T) {
+            printf("Error: Invalid arguments passed\n");
+            return -1;
+        }
+
+        ptr->counter++;
+        return 0; 
     }
 
-    if(token.type == VAR_NAME) {
-        int check = parseWriteFuncVar(ptr,token,input);
-        if(check == -1) { return -1; }
-        return 0;
-    }
-
-    ptr->Write.TextOrVar[ptr->counter] = 0;
-    strcpy(ptr->Write.write_func_content[ptr->counter],token.name);
-
-    token = getNextToken(input);
-    if(token.type != RPAREN) {
-        printf("Error: Forgot to close the parenthesis -> ')'\n");
-        return -1;
-    }
-
-    token = getNextToken(input);
-    if(token.type != SEMICOLON) {
-        printf("Error: Forgot the semicolon -> ';'\n");
-        return -1;
-    }
-
-    token = getNextToken(input);
-    if(token.type != EOF_T) {
-        printf("Error: Invalid arguments passed\n");
-        return -1;
-    }
-
-    ptr->counter++;
-    return 0;
+    return -1;
 }
 
 int parseAssignGetInput(Values *val,Token token,char **input) {
@@ -378,6 +492,71 @@ int parseTokens(Values *val,char **input) {
     Token token = getNextToken(input);
     if(token.type == EOF_T) return 0;
 
+    if(token.type == LOOP) {
+        token = getNextToken(input);
+        if(token.type != VAR_NAME) {
+            printf("Error: Invalid value '%s'\n",token.name);
+            return -1;
+        }
+
+        strcpy(val->var_name[val->counter],token.name);
+        token = getNextToken(input);
+        if(token.type != EQUAL) {
+            printf("Error: Forgot to assign the '='\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != VALUE) {
+            printf("Error: Invalid value '%s'\n",token.name);
+            return -1;
+        }
+
+        char *endPtr;
+        int number = strtol(token.name,&endPtr,10);
+        if(*endPtr != '\0') {
+            printf("Error: Invalid value '%s'\n",token.name);
+            return -1;
+        }
+        
+        val->Values.int_value[val->counter] = number;
+        token = getNextToken(input);
+        if(token.type != TO) {
+            printf("Error: Forgot to assign 'to'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != VALUE) {
+            printf("Error: Invalid value '%s'\n",token.name);
+            return -1;
+        }
+
+        char *endPtr2;
+        int number2 = strtol(token.name,&endPtr2,10);
+        if(*endPtr2 != '\0') {
+            printf("Error: Invalid value '%s'\n",token.name);
+            return -1;
+        }
+        
+        val->Loop.end[val->counter] = number2;
+        token = getNextToken(input);
+        if(token.type != COLON_CHAR) {
+            printf("Error: Forgot to assign ':'\n");
+            return -1;
+        }
+
+        token = getNextToken(input);
+        if(token.type != WRITE) {
+            printf("Error: Only write() is allowed for loops\n");
+            return -1;
+        }
+
+        int check = parseWriteFunc(val,input,1);
+        if(check == -1) { return -1;}
+        return 0;
+    }
+
     if(token.type == VAR_NAME) {
         int check = parseAssignGetInput(val,token,input);
         if(check == -1) { return -1; }
@@ -385,7 +564,7 @@ int parseTokens(Values *val,char **input) {
     }
 
     if(token.type == WRITE) {
-        if(parseWriteFunc(val,input)==-1) return -1;
+        if(parseWriteFunc(val,input,0)==-1) return -1;
         return 0;
     }
 
@@ -500,7 +679,7 @@ int parseTokens(Values *val,char **input) {
 }
 
 void codeGen(FILE *file,Values *val) {
-    for(int i=0; i<val->counter; i++) {
+    for(int i=0; i<=val->counter; i++) {
         if(val->type[i] == INTEGER) {
             fprintf(file,"    int %s = %d;\n",val->var_name[i],val->Values.int_value[i]);
         } else if(val->type[i] == TEXT) {
@@ -510,17 +689,17 @@ void codeGen(FILE *file,Values *val) {
         } else if(val->type[i] == BOOL) {
             fprintf(file,"    bool %s = %s;\n",val->var_name[i],val->Values.boolean[i]);
         } else if(val->type[i] == WRITE) {
-            if(val->Write.TextOrVar[i] == 0) {
-                fprintf(file,"    printf(\"%s\");\n",val->Write.write_func_content[i]);
-            } else if(val->Write.TextOrVar[i] == 1){
-                if(val->Write.type[i] == INTEGER) {
-                    fprintf(file,"    printf(\"%%d\\n\",%s);\n",val->Write.var_name[i]);
-                } else if(val->Write.type[i] == FLOAT) {
-                    fprintf(file,"    printf(\"%%f\\n\",%s);\n",val->Write.var_name[i]);
-                } else if(val->Write.type[i] == TEXT) {
-                    fprintf(file,"    printf(\"%%s\\n\",%s);\n",val->Write.var_name[i]);
-                } else if(val->Write.type[i] == BOOL) {
-                    fprintf(file,"    printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n", val->Write.var_name[i]);
+            if(val->Write.write.TextOrVar[i] == 0) {
+                fprintf(file,"    printf(\"%s\");\n",val->Write.write.write_func_content[i]);
+            } else if(val->Write.write.TextOrVar[i] == 1){
+                if(val->Write.write.type[i] == INTEGER) {
+                    fprintf(file,"    printf(\"%%d\\n\",%s);\n",val->Write.write.var_name[i]);
+                } else if(val->Write.write.type[i] == FLOAT) {
+                    fprintf(file,"    printf(\"%%f\\n\",%s);\n",val->Write.write.var_name[i]);
+                } else if(val->Write.write.type[i] == TEXT) {
+                    fprintf(file,"    printf(\"%%s\\n\",%s);\n",val->Write.write.var_name[i]);
+                } else if(val->Write.write.type[i] == BOOL) {
+                    fprintf(file,"    printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n", val->Write.write.var_name[i]);
                 }
             }
         } else if(val->type[i] == GETINPUT) {
@@ -528,27 +707,92 @@ void codeGen(FILE *file,Values *val) {
                 fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
                 if(val->GetInput.variableType[i] == INTEGER) {
                     fprintf(file,"    scanf(\"%%d\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\\n'&&ch%d!=EOF);\n",i,i);
                 } else if(val->GetInput.variableType[i] == TEXT) {
                     fprintf(file,"    scanf(\"%%s\",%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\\n'&&ch%d!=EOF);\n",i,i);
                 } else if(val->GetInput.variableType[i] == FLOAT) {
                     fprintf(file,"    scanf(\"%%f\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\\n'&&ch%d!=EOF);\n",i,i);
                 }  
             } else {
                 if(val->GetInput.variableType[i] == INTEGER) {
                     fprintf(file,"    int %s;\n",val->GetInput.var_name_to_get_input[i]);
                     fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
                     fprintf(file,"    scanf(\"%%d\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\\n'&&ch%d!=EOF);\n",i,i);
                 } else if(val->GetInput.variableType[i] == TEXT) {
                     fprintf(file,"    char %s[256];\n",val->GetInput.var_name_to_get_input[i]);
                     fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
                     fprintf(file,"    scanf(\"%%s\",%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\\n'&&ch%d!=EOF);\n",i,i);
                 } else if(val->GetInput.variableType[i] == FLOAT) {
                     fprintf(file,"    float %s;\n",val->GetInput.var_name_to_get_input[i]);
                     fprintf(file,"    printf(\"%s\");\n",val->GetInput.content[i]);
                     fprintf(file,"    scanf(\"%%f\",&%s);\n",val->GetInput.var_name_to_get_input[i]);
+                    fprintf(file,"    int ch%d;\n",i);
+                    fprintf(file,"    while((ch%d=getchar())!='\n'&&ch%d!=EOF);\n",i,i);
+
                 } 
             }
-        } 
+        } else if(val->type[i] == LOOP) {
+            if(val->Loop.write.TextOrVar[i]==0) {
+                fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%s\");\n"
+                        ,val->var_name[i]
+                        ,val->Values.int_value[i]
+                        ,val->var_name[i]
+                        ,val->Loop.end[i]
+                        ,val->var_name[i]
+                        ,val->Loop.write.write_func_content[i]);
+            } else if(val->Loop.write.TextOrVar[i] == 1) {
+                if(val->Loop.write.type[i] == INTEGER) {
+                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%d\\n\",%s);\n"
+                            ,val->var_name[i]
+                            ,val->Values.int_value[i]
+                            ,val->var_name[i]
+                            ,val->Loop.end[i]
+                            ,val->var_name[i]
+                            ,val->Loop.write.var_name[i]);
+                } else if(val->Loop.write.type[i] == FLOAT) {
+                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%f\\n\",%s);\n"
+                            ,val->var_name[i]
+                            ,val->Values.int_value[i]
+                            ,val->var_name[i]
+                            ,val->Loop.end[i]
+                            ,val->var_name[i]
+                            ,val->Loop.write.var_name[i]);
+                } else if(val->Loop.write.type[i] == TEXT) {
+                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%s\\n\",%s);\n"
+                            ,val->var_name[i]
+                            ,val->Values.int_value[i]
+                            ,val->var_name[i]
+                            ,val->Loop.end[i]
+                            ,val->var_name[i]
+                            ,val->Loop.write.var_name[i]);
+                } else if(val->Loop.write.type[i] == BOOL) {
+                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n"
+                            ,val->var_name[i]
+                            ,val->Values.int_value[i]
+                            ,val->var_name[i]
+                            ,val->Loop.end[i]
+                            ,val->var_name[i]
+                            ,val->Loop.write.var_name[i]);
+                } else {
+                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%d\\n\",%s);\n"
+                            ,val->var_name[i]
+                            ,val->Values.int_value[i]
+                            ,val->var_name[i]
+                            ,val->Loop.end[i]
+                            ,val->var_name[i]
+                            ,val->Loop.write.var_name[i]);
+                }
+            }
+        }
     }
 }
 
@@ -582,8 +826,6 @@ int main(int argc,char *argv[]) {
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
 
-    system("gcc output.c -o main");
-    system("rm output.c");
 
     return 0;
 }

@@ -32,6 +32,10 @@ name = getInput("Enter your name: ");
 # This is a comment
 let newVar1: integer = getInput("Enter a number: ");
 let newVar2: string = getInput("Enter your name: ");
+
+# For now loops are only allowing write()
+loop i=1 to 3: write("Hello");
+loop x=2 to 10: write(x);
 ...
 ```
 ---
