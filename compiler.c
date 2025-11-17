@@ -826,6 +826,8 @@ int main(int argc,char *argv[]) {
     fprintf(file,"    return 0;\n}\n");
     fclose(file);
 
+    system("gcc output.c -o main");
+    system("rm output.c");
 
     return 0;
 }
