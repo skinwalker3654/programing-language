@@ -527,19 +527,37 @@ int parseTokens(Values *val,char **input) {
         }
 
         token = getNextToken(input);
-        if(token.type != VALUE) {
+        if(token.type != VALUE && token.type != VAR_NAME) {
             printf("Error: Invalid value '%s'\n",token.name);
             return -1;
         }
 
-        char *endPtr2;
-        int number2 = strtol(token.name,&endPtr2,10);
-        if(*endPtr2 != '\0') {
-            printf("Error: Invalid value '%s'\n",token.name);
-            return -1;
-        }
+        if(token.type == VALUE) {
+            char *endPtr2;
+            int number2 = strtol(token.name,&endPtr2,10);
+            if(*endPtr2 != '\0') {
+                printf("Error: Invalid value '%s'\n",token.name);
+                return -1;
+            }
         
-        val->Loop.end[val->counter] = number2;
+            val->Loop.end[val->counter] = number2;
+        } else if(token.type == VAR_NAME) {
+            int index = -1;
+            for(int i=0; i<val->counter; i++) {
+                if(strcmp(val->var_name[i],token.name)==0) {
+                    index = i;
+                    break;
+                }
+            }
+
+            if(index == -1) {
+                printf("Error: Variable '%s' not found\n",token.name);
+                return -1;
+            }
+
+            val->Loop.end[val->counter] = val->Values.int_value[index];
+        }
+
         token = getNextToken(input);
         if(token.type != COLON_CHAR) {
             printf("Error: Forgot to assign ':'\n");
