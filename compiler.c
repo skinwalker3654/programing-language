@@ -760,7 +760,7 @@ void codeGen(FILE *file,Values *val) {
             }
         } else if(val->type[i] == LOOP) {
             if(val->Loop.write.TextOrVar[i]==0) {
-                fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%s\");\n"
+                fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%s\");\n"
                         ,val->var_name[i]
                         ,val->Values.int_value[i]
                         ,val->var_name[i]
@@ -769,7 +769,7 @@ void codeGen(FILE *file,Values *val) {
                         ,val->Loop.write.write_func_content[i]);
             } else if(val->Loop.write.TextOrVar[i] == 1) {
                 if(val->Loop.write.type[i] == INTEGER) {
-                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%d\\n\",%s);\n"
+                    fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%%d\\n\",%s);\n"
                             ,val->var_name[i]
                             ,val->Values.int_value[i]
                             ,val->var_name[i]
@@ -777,7 +777,7 @@ void codeGen(FILE *file,Values *val) {
                             ,val->var_name[i]
                             ,val->Loop.write.var_name[i]);
                 } else if(val->Loop.write.type[i] == FLOAT) {
-                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%f\\n\",%s);\n"
+                    fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%%f\\n\",%s);\n"
                             ,val->var_name[i]
                             ,val->Values.int_value[i]
                             ,val->var_name[i]
@@ -785,7 +785,7 @@ void codeGen(FILE *file,Values *val) {
                             ,val->var_name[i]
                             ,val->Loop.write.var_name[i]);
                 } else if(val->Loop.write.type[i] == TEXT) {
-                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%s\\n\",%s);\n"
+                    fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%%s\\n\",%s);\n"
                             ,val->var_name[i]
                             ,val->Values.int_value[i]
                             ,val->var_name[i]
@@ -793,7 +793,7 @@ void codeGen(FILE *file,Values *val) {
                             ,val->var_name[i]
                             ,val->Loop.write.var_name[i]);
                 } else if(val->Loop.write.type[i] == BOOL) {
-                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n"
+                    fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%%s\\n\", %s ? \"true\" : \"false\");\n"
                             ,val->var_name[i]
                             ,val->Values.int_value[i]
                             ,val->var_name[i]
@@ -801,7 +801,7 @@ void codeGen(FILE *file,Values *val) {
                             ,val->var_name[i]
                             ,val->Loop.write.var_name[i]);
                 } else {
-                    fprintf(file,"    for(int %s=%d; %s<=%d; %s++) printf(\"%%d\\n\",%s);\n"
+                    fprintf(file,"    for(int %s=%d; %s<%d; %s++) printf(\"%%d\\n\",%s);\n"
                             ,val->var_name[i]
                             ,val->Values.int_value[i]
                             ,val->var_name[i]
